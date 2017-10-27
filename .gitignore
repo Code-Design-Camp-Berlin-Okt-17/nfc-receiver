@@ -1,0 +1,10 @@
+nfcreceiver/*.iml
+nfcreceiver/.gradle
+nfcreceiver/local.properties
+nfcreceiver/.idea/workspace.xml
+nfcreceiver/.idea/libraries
+nfcreceiver/.DS_Store
+nfcreceiver/build
+nfcreceiver/captures
+nfcreceiver/.externalNativeBuild
+nfcreceiver/.idea
