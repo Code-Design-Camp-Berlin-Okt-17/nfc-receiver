@@ -6,6 +6,7 @@ import android.nfc.NdefMessage;
 import android.nfc.NdefRecord;
 import android.nfc.NfcAdapter;
 import android.nfc.NfcEvent;
+import android.nfc.Tag;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.support.v7.app.AppCompatActivity;
@@ -21,19 +22,26 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Create
     private String keyWithoutHash = "1234";
     private boolean isSending = false;
     private String[] unlockingDeviceKeys;
-
+    NfcAdapter mAdapter;
+    public static int READER_FLAGS = NfcAdapter.FLAG_READER_NFC_A | NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK;
     AES aes = new AES();
+    boolean newProject = true;
+
+    int devices = 2;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         textInput = (TextView) findViewById(R.id.textInput);
+        setup();
     }
 
     @Override
     protected void onResume(){
         super.onResume();
+
+        // als class auslagern
         Intent intent = getIntent();
         if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(intent.getAction())) {
             Parcelable[] rawMessages = intent.getParcelableArrayExtra(
@@ -41,13 +49,15 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Create
 
             NdefMessage message = (NdefMessage) rawMessages[0]; // only one message transferred
             String stringMessage = new String(message.getRecords()[0].getPayload());
-            Log.i("Done", stringMessage);
-            if(stringMessage.equals(keyWithoutHash)){
+
+            checkMessage(stringMessage);
+
+            if (stringMessage.equals(keyWithoutHash)) {
                 confirmation = "accepted";
                 textInput.setText("Accepted");
                 isSending = true;
                 nfcSend();
-            }else{
+            } else {
                 confirmation = "denied";
                 textInput.setText("Denied");
                 isSending = true;
@@ -58,8 +68,32 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Create
             textInput.setText("Waiting for Transmittion...");
     }
 
+    public void checkMessage(String message){
+
+        if(message.contains("|")) {
+            newProject = false;
+        } else {
+            setup();
+        }
+    }
+
+    public void setup(){
+        String encryptKey = "geheim";
+        String encryptString = genCode(devices);
+        try {
+            byte[] encryptedKey = aes.encrypt(encryptKey, encryptString);
+            System.out.println(encryptedKey);
+            String encryptedString = new String(encryptedKey);
+            getPreferences(MODE_PRIVATE).edit().putString("ELOCK_KEY", encryptedString).commit();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        //String ur_variable = getPreferences(MODE_PRIVATE).getString("Name of variable",);
+    }
+
     public void nfcSend() {
-        NfcAdapter mAdapter = NfcAdapter.getDefaultAdapter(this);
+        mAdapter = NfcAdapter.getDefaultAdapter(this);
 
         if (!mAdapter.isEnabled()) {
             Toast.makeText(this, "Please enable NFC via Settings.", Toast.LENGTH_LONG).show();
@@ -109,7 +143,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Create
         for(int i=0; i<key.length(); i++) {
             key = key + genCode(user);
         }
-        try {
+        /*try {
             // key in datei schreiben
         } catch (IOException e) {
             System.out.println(e);
@@ -119,7 +153,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Create
 
             Toast toast = Toast.makeText(context, text, duration);
             toast.show();
-        }
+        }*/
     }
 
     public String genCode(int user){
