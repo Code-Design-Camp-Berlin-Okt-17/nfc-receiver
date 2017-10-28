@@ -22,6 +22,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Create
     private boolean isSending = false;
     private String[] unlockingDeviceKeys;
 
+    AES aes = new AES();
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
