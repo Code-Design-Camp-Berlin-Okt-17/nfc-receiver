@@ -1,12 +1,10 @@
 package elocktronics.nfc_receiver;
 
-import android.content.Context;
 import android.content.Intent;
 import android.nfc.NdefMessage;
 import android.nfc.NdefRecord;
 import android.nfc.NfcAdapter;
 import android.nfc.NfcEvent;
-import android.nfc.Tag;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.support.v7.app.AppCompatActivity;
@@ -14,6 +12,7 @@ import android.util.Log;
 import android.widget.TextView;
 import android.widget.Toast;
 import java.io.*;
+import java.util.Random;
 
 public class MainActivity extends AppCompatActivity implements NfcAdapter.CreateNdefMessageCallback, NfcAdapter.OnNdefPushCompleteCallback {
 
@@ -35,61 +34,94 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Create
         setContentView(R.layout.activity_main);
         textInput = (TextView) findViewById(R.id.textInput);
         setup();
+
     }
 
     @Override
     protected void onResume(){
         super.onResume();
 
-        // als class auslagern
+        main();
+    }
+
+    public void main() {
         Intent intent = getIntent();
         if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(intent.getAction())) {
             Parcelable[] rawMessages = intent.getParcelableArrayExtra(
                     NfcAdapter.EXTRA_NDEF_MESSAGES);
-
             NdefMessage message = (NdefMessage) rawMessages[0]; // only one message transferred
             String stringMessage = new String(message.getRecords()[0].getPayload());
 
-            checkMessage(stringMessage);
+            if (stringMessage.equals("setup")) {
+                int devicesCount = getPreferences(MODE_PRIVATE).getInt("ELOCK_DEVICES", -1);
+                if (devicesCount == -1) {
+                    setup();
+                    Log.i("Setup?", Integer.toString(devicesCount));
+                } else if (devicesCount != 0) {
+                    Log.i("Setup?", Integer.toString(devicesCount));
+                    int devicesTotal = getPreferences(MODE_PRIVATE).getInt("ELOCK_DEVICES_TOTAL", -1);
+                    String keys = getPreferences(MODE_PRIVATE).getString("ELOCK_KEY", "");
+                    String key = slice((devicesCount * 16) - 1, ((devicesCount + 1) * 16) - 1, keys);
+
+                    confirmation = "";
+                    nfcSend();
+                } else if (devicesCount == 0) {
+                    Log.i("Setup?", Integer.toString(devicesCount));
+                    // setup done - lock ready
+                }
+            } else {
+
+            }
 
             if (stringMessage.equals(keyWithoutHash)) {
-                confirmation = "accepted";
+                //confirmation = "accepted";
                 textInput.setText("Accepted");
                 isSending = true;
                 nfcSend();
             } else {
-                confirmation = "denied";
+                //confirmation = "denied";
                 textInput.setText("Denied");
                 isSending = true;
                 nfcSend();
             }
-
         } else
             textInput.setText("Waiting for Transmittion...");
-    }
-
-    public void checkMessage(String message){
-
-        if(message.contains("|")) {
-            newProject = false;
-        } else {
-            setup();
-        }
     }
 
     public void setup(){
         String encryptKey = "geheim";
         String encryptString = genCode(devices);
+        Log.i("Generaged key", encryptString);
         try {
             byte[] encryptedKey = aes.encrypt(encryptKey, encryptString);
             System.out.println(encryptedKey);
             String encryptedString = new String(encryptedKey);
             getPreferences(MODE_PRIVATE).edit().putString("ELOCK_KEY", encryptedString).commit();
+            getPreferences(MODE_PRIVATE).edit().putInt("ELOCK_DEVICES", devices - 1).commit();
         } catch (Exception e) {
             e.printStackTrace();
         }
 
-        //String ur_variable = getPreferences(MODE_PRIVATE).getString("Name of variable",);
+        String sliced = slice(0, 15, encryptString);
+        confirmation = sliced;
+        Log.i("Confirmation", sliced);
+    }
+
+    public String slice(int start, int end, String s) {
+        String temp = "";
+        end++;
+        for(int i = start; i < end; i++) {
+            temp += String.valueOf(s.charAt(i));
+        }
+        return temp;
+    }
+
+    public void countdownDevices(String message) {
+
+    }
+
+    public void receiveKeys() {
+
     }
 
     public void nfcSend() {
@@ -158,9 +190,10 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Create
 
     public String genCode(int user){
         String out = "";
-        for(int i=0; i<16; i++){
-            int r = (int)Math.random()*10;
-            out = out + r;
+        Random random = new Random();
+        for(int i=0; i < (user * 16); i++){
+            int r = random.nextInt(9);
+            out += r;
         }
         return out;
     }
